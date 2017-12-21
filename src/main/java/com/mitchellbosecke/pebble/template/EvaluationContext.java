@@ -8,8 +8,8 @@
  ******************************************************************************/
 package com.mitchellbosecke.pebble.template;
 
-import com.google.common.cache.Cache;
 import com.mitchellbosecke.pebble.cache.BaseTagCacheKey;
+import com.mitchellbosecke.pebble.cache.PebbleCache;
 import com.mitchellbosecke.pebble.extension.ExtensionRegistry;
 
 import java.util.ArrayList;
@@ -58,7 +58,7 @@ public class EvaluationContext {
     /**
      * The tag cache
      */
-    private final Cache<BaseTagCacheKey, Object> tagCache;
+    private final PebbleCache<BaseTagCacheKey, Object> tagCache;
 
     /**
      * The user-provided ExecutorService (can be null).
@@ -83,7 +83,7 @@ public class EvaluationContext {
      * @param tagCache          The cache used by the "cache" tag
      */
     public EvaluationContext(PebbleTemplateImpl self, boolean strictVariables, Locale locale,
-                             ExtensionRegistry extensionRegistry, Cache<BaseTagCacheKey, Object> tagCache,
+                             ExtensionRegistry extensionRegistry, PebbleCache<BaseTagCacheKey, Object> tagCache,
                              ExecutorService executorService, List<PebbleTemplateImpl> importedTemplates, ScopeChain scopeChain,
                              Hierarchy hierarchy) {
 
@@ -178,7 +178,7 @@ public class EvaluationContext {
      *
      * @return The cache used for the "cache" tag
      */
-    public Cache<BaseTagCacheKey, Object> getTagCache() {
+    public PebbleCache<BaseTagCacheKey, Object> getTagCache() {
         return tagCache;
     }
 

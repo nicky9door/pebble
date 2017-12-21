@@ -8,9 +8,10 @@
  ******************************************************************************/
 package com.mitchellbosecke.pebble;
 
-import com.google.common.cache.Cache;
-import com.google.common.cache.CacheBuilder;
 import com.mitchellbosecke.pebble.cache.BaseTagCacheKey;
+import com.mitchellbosecke.pebble.cache.ConcurrentHashMapPebbleCache;
+import com.mitchellbosecke.pebble.cache.NoopPebbleCache;
+import com.mitchellbosecke.pebble.cache.PebbleCache;
 import com.mitchellbosecke.pebble.error.LoaderException;
 import com.mitchellbosecke.pebble.error.PebbleException;
 import com.mitchellbosecke.pebble.extension.Extension;
@@ -39,7 +40,6 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 
 /**
@@ -59,11 +59,11 @@ public class PebbleEngine {
 
     private final Locale defaultLocale;
 
-    private final Cache<BaseTagCacheKey, Object> tagCache;
+    private final PebbleCache<BaseTagCacheKey, Object> tagCache;
 
     private final ExecutorService executorService;
 
-    private final Cache<Object, PebbleTemplate> templateCache;
+    private final PebbleCache<Object, PebbleTemplate> templateCache;
 
     private final ExtensionRegistry extensionRegistry;
 
@@ -76,7 +76,7 @@ public class PebbleEngine {
      * @param extensions The userProvidedExtensions which should be loaded.
      */
     private PebbleEngine(Loader<?> loader, Syntax syntax, boolean strictVariables, Locale defaultLocale,
-                         Cache<BaseTagCacheKey, Object> tagCache, Cache<Object, PebbleTemplate> templateCache,
+                         PebbleCache<BaseTagCacheKey, Object> tagCache, PebbleCache<Object, PebbleTemplate> templateCache,
                          ExecutorService executorService, Collection<? extends Extension> extensions) {
 
         this.loader = loader;
@@ -139,13 +139,11 @@ public class PebbleEngine {
                     return instance;
                 }
             });
-        } catch (ExecutionException e) {
-            /*
-             * The execution exception is probably caused by a PebbleException
-             * being thrown in the above Callable. We will unravel it and throw
-             * the original PebbleException which is more helpful to the end
-             * user.
-             */
+        }
+        catch(RuntimeException|PebbleException e){
+            throw e;
+        }
+        catch (Exception e) {
             if (e.getCause() != null && e.getCause() instanceof PebbleException) {
                 throw (PebbleException) e.getCause();
             } else {
@@ -187,7 +185,7 @@ public class PebbleEngine {
      *
      * @return The template cache
      */
-    public Cache<Object, PebbleTemplate> getTemplateCache() {
+    public PebbleCache<Object, PebbleTemplate> getTemplateCache() {
         return templateCache;
     }
 
@@ -241,7 +239,7 @@ public class PebbleEngine {
      *
      * @return The tag cache
      */
-    public Cache<BaseTagCacheKey, Object> getTagCache() {
+    public PebbleCache<BaseTagCacheKey, Object> getTagCache() {
         return this.tagCache;
     }
 
@@ -264,11 +262,11 @@ public class PebbleEngine {
 
         private ExecutorService executorService;
 
-        private Cache<Object, PebbleTemplate> templateCache;
+        private PebbleCache<Object, PebbleTemplate> templateCache;
 
         private boolean cacheActive = true;
 
-        private Cache<BaseTagCacheKey, Object> tagCache;
+        private PebbleCache<BaseTagCacheKey, Object> tagCache;
 
         private EscaperExtension escaperExtension = new EscaperExtension();
 
@@ -389,7 +387,7 @@ public class PebbleEngine {
          * @param templateCache The template cache
          * @return This builder object
          */
-        public Builder templateCache(Cache<Object, PebbleTemplate> templateCache) {
+        public Builder templateCache(PebbleCache<Object, PebbleTemplate> templateCache) {
             this.templateCache = templateCache;
             return this;
         }
@@ -400,7 +398,7 @@ public class PebbleEngine {
          * @param tagCache The tag cache
          * @return This builder object
          */
-        public Builder tagCache(Cache<BaseTagCacheKey, Object> tagCache) {
+        public Builder tagCache(PebbleCache<BaseTagCacheKey, Object> tagCache) {
             this.tagCache = tagCache;
             return this;
         }
@@ -482,15 +480,15 @@ public class PebbleEngine {
             if (cacheActive) {
                 // default caches
                 if (templateCache == null) {
-                    templateCache = CacheBuilder.newBuilder().maximumSize(200).build();
+                    templateCache = new ConcurrentHashMapPebbleCache<>();
                 }
 
                 if (tagCache == null) {
-                    tagCache = CacheBuilder.newBuilder().maximumSize(200).build();
+                    tagCache = new ConcurrentHashMapPebbleCache<>();
                 }
             } else {
-                templateCache = CacheBuilder.newBuilder().maximumSize(0).build();
-                tagCache = CacheBuilder.newBuilder().maximumSize(0).build();
+                templateCache = new NoopPebbleCache<>();
+                tagCache = new NoopPebbleCache<>();
             }
 
             if(syntax == null) {

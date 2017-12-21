@@ -135,7 +135,11 @@ public class CacheNode extends AbstractRenderableNode {
                 }
             });
             writer.write(body);
-        } catch (ExecutionException e) {
+        }
+        catch (RuntimeException|PebbleException e){
+            throw e;
+        }
+        catch (Exception e) {
             throw new PebbleException(e, "Could not render cache block [" + this.name + "]");
         }
     }
